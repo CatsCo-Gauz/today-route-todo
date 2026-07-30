@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#173a2b">
+  <meta name="application-name" content="今日小岛 Todo">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="今日小岛">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
   <title>今日小岛 · Todo</title>
   <style>
     :root{--ink:#173a2b;--green:#347b4d;--lime:#dff36d;--sand:#f5efdf;--paper:#fffdf7;--sky:#bfe5f3;--water:#73c9d0;--line:#dfdfd3;--muted:#69766e;--orange:#ff9d62;--shadow:0 18px 45px rgba(25,55,39,.10)}
@@ -37,11 +44,12 @@
     /* Final interaction hardening: compact islands retain 44px targets without overlap. */
     @media(max-width:360px){.island-scene{margin:0 4px}.plot{width:15%!important;height:13%!important}.plot:nth-child(4n+1){left:20%!important}.plot:nth-child(4n+2){left:40%!important}.plot:nth-child(4n+3){left:60%!important}.plot:nth-child(4n){left:80%!important}.plot:nth-child(-n+4){top:26%!important}.plot:nth-child(n+5):nth-child(-n+8){top:43%!important}.plot:nth-child(n+9){top:60%!important}.free-plant{width:52px;height:56px;min-width:44px;min-height:44px}}
 
+.install-app{border:1px solid rgba(23,58,43,.12);background:var(--lime);color:var(--ink);border-radius:999px;padding:8px 12px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap}.install-app:hover{transform:translateY(-1px)}.install-app[hidden]{display:none}@media(max-width:580px){.install-app{padding:8px 10px}.install-app span{display:none}}
 </style>
 </head>
 <body>
 <main class="app">
-  <header><div class="brand"><div class="brand-mark">🏝️</div>今日小岛</div><div class="header-right"><div class="date" id="dateText"></div><button class="account-chip" id="openAccount" type="button" aria-label="账号与切换"><span class="account-avatar" id="accountAvatar">岛</span><span id="accountName">设置账号</span></button></div></header>
+  <header><div class="brand"><div class="brand-mark">🏝️</div>今日小岛</div><div class="header-right"><div class="date" id="dateText"></div><button class="install-app" id="installApp" type="button" hidden aria-label="安装今日小岛到桌面">⬇ <span>安装到桌面</span></button><button class="account-chip" id="openAccount" type="button" aria-label="账号与切换"><span class="account-avatar" id="accountAvatar">岛</span><span id="accountName">设置账号</span></button></div></header>
   <section class="hero">
     <div><div class="eyebrow">DO THINGS · GROW YOUR ISLAND</div><h1>完成现实里的小事，种出自己的岛。</h1><p id="heroText">计时藏在后台，完成后掉落种子。种什么、放哪里，都由你决定。</p></div>
     <div class="hero-stats"><div class="hero-stat"><b id="doneCount">0/0</b><span>今日完成</span></div><div class="hero-stat"><b id="bagCount">0</b><span>背包种子</span></div><div class="hero-stat"><b id="coinCount">0</b><span>自由币</span></div></div>
@@ -340,6 +348,11 @@
   function updateDate(){const d=new Date();$('#dateText').textContent=`${d.getMonth()+1}月${d.getDate()}日 · ${['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][d.getDay()]}`}
   function checkDayChange(){ensureCurrentDay(true)}
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkDayChange()});window.addEventListener('focus',checkDayChange);window.addEventListener('pageshow',checkDayChange);window.addEventListener('storage',e=>{if(e.key===ACCOUNT_META_KEY||e.key===ACCOUNT_META_BACKUP_KEY){accountsMeta=loadAccountMeta();if($('#accountDialog').open&&!authBusy)renderAuth(authMode);return}if(e.key!==KEY||!e.newValue)return;try{const parsed=safeParse(e.newValue);if(!validSnapshot(parsed))return;const incoming=normalize(parsed),newer=Number(incoming.revision||0)>Number(state.revision||0)||(Number(incoming.revision||0)===Number(state.revision||0)&&Number(incoming.updatedAt||0)>Number(state.updatedAt||0));if(newer&&!pendingSaves.has(currentAccount?.id)){state=incoming;persistedBase=clone(state);selectedEnergy=state.energy;selectedSeed=null;selectedPlot=null;render()}}catch(err){console.warn('同步其他页面存档失败',err)}});
+  let installPrompt=null;const installButton=$('#installApp'),standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;if(!standalone)installButton.hidden=false});
+  installButton.onclick=async()=>{if(!installPrompt){toast('请打开浏览器菜单，选择“安装今日小岛”或“创建快捷方式”');return}installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;installButton.hidden=true};
+  window.addEventListener('appinstalled',()=>{installPrompt=null;installButton.hidden=true;toast('今日小岛已安装到桌面')});
+  if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('离线组件注册失败',err)));
   updateDate();if(currentAccount)restoreMemoryDB().finally(()=>render());else{render();setTimeout(()=>openAccountDialog(accountsMeta.accounts.length?'login':'register'),0)}setInterval(checkDayChange,30000);
 })();
 </script>
